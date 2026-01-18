@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Přehled objednávek - Statická verze</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .order-item-done {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+    </style>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+</head>
+<body class="p-4">
+    <div class="max-w-6xl mx-auto">
+        <div class="fixed top-4 left-4 bg-white p-3 rounded shadow z-10">
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="autoPrintToggle" class="w-5 h-5">
+                <span class="font-medium"> 🖨 Auto tisk</span>
+            </label>
+        </div>
+
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-8 mt-12 md:mt-0">
+            Přehled objednávek
+        </h1>
+
+        <div id="columns" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div id="fried-column" class="md:col-span-2 space-y-6">
+                <h2 class="text-2xl font-bold flex items-center gap-2">🍟 Smažené</h2>
+                <div id="fried-orders" class="space-y-4"></div>
+            </div>
+
+            <div id="burger-column" class="md:col-span-1 space-y-6">
+                <h2 class="text-2xl font-bold flex items-center gap-2">🍔 Burgry</h2>
+                <div id="burger-orders" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA OBJEDNÁVEK (Načtou se znovu při každém reloadu) ---
+        let ordersData = {
+            "22": {
+                timestamp: "13:49",
+                items: [{ text: "1 Rizky + hranolky", done: false }],
+                hiddenParts: { smazene: false, burgry: false }
+            },
+            "55": {
+                timestamp: "19:23",
+                items: [{ text: "1 Tvaruzky + Salat", done: false }],
+                hiddenParts: { smazene: false, burgry: false }
+            },
+            "12": {
+                timestamp: "18:45",
+                items: [
+                    { text: "Burgr Klasik", done: true },
+                    { text: "B. omacka Slaninova", done: true }
+                ],
+                hiddenParts: { smazene: false, burgry: false }
+            }
+        };
+
+        // --- POMOCNÉ FUNKCE ---
+
+        function isBurgerItem(text) {
+            const t = text.trim();
+            return t.startsWith("B.") || t.startsWith("Burgr") || t.includes("Burger");
+        }
+
+        // Simulace tisku
+        function printOrder(orderId) {
+            alert(`Tiskne se lístek pro objednávku č. #${orderId} | toto tady nebude to jenom že se něco logicky vytiskne`);
+            console.log(`Printing order #${orderId}`);
+        }
+
+        // Aktualizace stavu zaškrtnutí
+        function updateOrderItem(orderId, itemText, isDone) {
+            const order = ordersData[orderId];
+            if (order) {
+                const item = order.items.find(i => i.text === itemText);
+                if (item) item.done = isDone;
+                renderOrders(); // Překreslit
+            }
+        }
+
+        // Skrytí části objednávky
+        function hideOrderPart(orderId, part) {
+            if (ordersData[orderId]) {
+                ordersData[orderId].hiddenParts[part] = true;
+                renderOrders(); // Překreslit
+            }
+        }
+
+        // --- RENDER LOGIKA ---
+
+        function createOrderCard(orderId, time, items, type) {
+            const card = document.createElement("div");
+            card.className = "order-card bg-white rounded-lg shadow-md p-4 mb-4";
+
+            const title = document.createElement("h3");
+            title.className = "text-xl font-semibold mb-2";
+            title.textContent = `#${orderId} (${time})`;
+
+            const list = document.createElement("ul");
+            list.className = "space-y-2 mb-4";
+
+            items.forEach(item => {
+                const li = document.createElement("li");
+                li.className = "flex items-center gap-2";
+
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.className = "w-5 h-5";
+                cb.checked = item.done;
+                cb.onchange = () => updateOrderItem(orderId, item.text, cb.checked);
+
+                const span = document.createElement("span");
+                span.className = "text-lg";
+                span.textContent = item.text;
+                if (item.done) span.classList.add("order-item-done");
+
+                li.append(cb, span);
+                list.appendChild(li);
+            });
+
+            card.append(title, list);
+
+            const btnContainer = document.createElement("div");
+            btnContainer.className = "flex flex-wrap gap-2 mt-4";
+
+            // Červené tlačítko SKRÝT (zobrazí se jen když jsou všechny položky v daném bloku hotové)
+            const allDone = items.every(i => i.done);
+            if (allDone) {
+                const hideBtn = document.createElement("button");
+                hideBtn.textContent = "Skrýt tuto část";
+                hideBtn.className = "px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition";
+                hideBtn.onclick = () => hideOrderPart(orderId, type);
+                btnContainer.appendChild(hideBtn);
+            }
+
+            // Modré tlačítko TISK
+            const printBtn = document.createElement("button");
+            printBtn.textContent = "🖨 Tisknout číslo";
+            printBtn.className = "px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition";
+            printBtn.onclick = () => printOrder(orderId);
+            btnContainer.appendChild(printBtn);
+
+            card.appendChild(btnContainer);
+            return card;
+        }
+
+        function renderOrders() {
+            const friedContainer = document.getElementById("fried-orders");
+            const burgerContainer = document.getElementById("burger-orders");
+            const burgerColumn = document.getElementById("burger-column");
+
+            // Vyčistit kontejnery
+            friedContainer.innerHTML = "";
+            burgerContainer.innerHTML = "";
+
+            let burgerVisibleCount = 0;
+
+            Object.entries(ordersData).forEach(([orderId, order]) => {
+                const friedItems = order.items.filter(item => !isBurgerItem(item.text));
+                const burgerItems = order.items.filter(item => isBurgerItem(item.text));
+
+                // Vykreslení smaženého
+                if (!order.hiddenParts.smazene && friedItems.length > 0) {
+                    friedContainer.appendChild(createOrderCard(orderId, order.timestamp, friedItems, "smazene"));
+                }
+
+                // Vykreslení burgerů
+                if (!order.hiddenParts.burgry && burgerItems.length > 0) {
+                    burgerVisibleCount++;
+                    burgerContainer.appendChild(createOrderCard(orderId, order.timestamp, burgerItems, "burgry"));
+                }
+            });
+
+            // Pokud nejsou žádné burgery, skryj celý sloupec
+            burgerColumn.style.display = burgerVisibleCount === 0 ? "none" : "block";
+        }
+
+        // První spuštění
+        renderOrders();
+    </script>
+</body>
+</html>
